@@ -1,0 +1,179 @@
+:root {
+  --bg: #f3f7fb;
+  --panel: #ffffff;
+  --text: #1d2939;
+  --subtext: #475467;
+  --line: #d0d5dd;
+  --accent: #0b6ef3;
+  --green: #067647;
+  --yellow: #b54708;
+  --red: #b42318;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(180deg, #eaf2ff 0%, #f7fbff 45%, #f4f8fb 100%);
+  color: var(--text);
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+.header {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.06);
+}
+
+.header h1 {
+  font-size: 26px;
+  margin-bottom: 8px;
+}
+
+.header p {
+  color: var(--subtext);
+  margin-bottom: 4px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.section-title {
+  margin: 20px 0 12px;
+  font-size: 20px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.symbol {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.meta {
+  font-size: 13px;
+  color: var(--subtext);
+}
+
+.chart-wrap {
+  width: 100%;
+  height: 240px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid #eaecf0;
+  padding: 6px 4px;
+  text-align: left;
+}
+
+.tag {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tag.green {
+  background: #dcfae6;
+  color: var(--green);
+}
+
+.tag.yellow {
+  background: #fff4cc;
+  color: var(--yellow);
+}
+
+.tag.red {
+  background: #fee4e2;
+  color: var(--red);
+}
+
+.empty {
+  color: var(--subtext);
+  font-size: 14px;
+  padding: 20px 0;
+}
+
+@media (max-width: 768px) {
+  main {
+    padding: 14px;
+  }
+
+  .header {
+    padding: 14px;
+  }
+
+  .header h1 {
+    font-size: 22px;
+  }
+
+  .chart-wrap {
+    height: 220px;
+  }
+}
