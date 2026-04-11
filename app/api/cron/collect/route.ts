@@ -4,7 +4,7 @@ import { collectOpenInterest } from "@/lib/collector";
 import { config } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 function authorizedForCron(request: NextRequest): boolean {
   if (!config.cronSecret) {

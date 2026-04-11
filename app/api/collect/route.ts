@@ -4,6 +4,7 @@ import { collectOpenInterest } from "@/lib/collector";
 import { config } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 function hasAccess(request: NextRequest): boolean {
   if (!config.collectApiToken) {

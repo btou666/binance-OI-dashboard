@@ -1,8 +1,9 @@
 # Binance 合约异常监控（基础版）
 
 这个项目提供：
-- 每小时采集币安 USDT 合约持仓量（Open Interest）
-- 前端折线图可视化（便于校验）
+- 每小时采集 Binance USDT-M 永续全量币对的持仓量（Open Interest）
+- 前端双线图可视化（时间点 + 持仓量 + 价格）
+- 全量币对实时价格拉取，并按最新 OI 降序排列
 - 飞书报警（绿色/黄色/红色）
 - GitHub Actions 定时任务（免费方案）
 
@@ -42,10 +43,12 @@
 说明：
 - 工作流每小时第 5 分钟触发一次（UTC 时区）。
 - 也支持在 Actions 页面手动 `Run workflow`。
+- 全量 600+ 币对时，请根据函数时长限制调小或调大 `COLLECT_CONCURRENCY`。
 
 ## 环境变量说明
-- `MONITOR_SYMBOLS`：监控交易对列表（如 `BTCUSDT,ETHUSDT`）
+- `MONITOR_SYMBOLS`：`ALL`（推荐，全量自动发现）或手动列表（如 `BTCUSDT,ETHUSDT`）
 - `MAX_POINTS_PER_SYMBOL`：每个交易对保留的数据点数量
+- `COLLECT_CONCURRENCY`：采集并发数（全量建议 15~30）
 - `FEISHU_WEBHOOK_URL`：飞书机器人 webhook 地址
 - `COLLECT_API_TOKEN`：手动采集接口的访问口令（可选）
 - `CRON_SECRET`：Cron 鉴权口令（可选）

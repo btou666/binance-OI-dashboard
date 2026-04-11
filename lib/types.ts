@@ -4,6 +4,7 @@ export interface OIPoint {
   symbol: string;
   timestamp: number;
   openInterest: number;
+  price: number | null;
 }
 
 export interface AlertEvent {
@@ -20,14 +21,18 @@ export interface AlertEvent {
   ratio: number;
 }
 
-export interface SymbolSeries {
+export interface SymbolSnapshot {
   symbol: string;
-  points: OIPoint[];
+  latestOpenInterest: number | null;
+  latestPrice: number | null;
+  lastUpdated: number | null;
   latestDelta: number | null;
 }
 
 export interface DashboardPayload {
   updatedAt: number;
-  series: SymbolSeries[];
+  selectedSymbol: string | null;
+  chartSeries: OIPoint[];
+  symbols: SymbolSnapshot[];
   alerts: AlertEvent[];
 }

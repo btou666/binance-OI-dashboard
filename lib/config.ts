@@ -1,16 +1,21 @@
-const DEFAULT_SYMBOLS = ["BTCUSDT", "ETHUSDT"];
+type SymbolMode = "all" | "manual";
 
-function parseSymbols(raw?: string): string[] {
-  if (!raw) {
-    return DEFAULT_SYMBOLS;
+function parseSymbolsConfig(raw?: string): { mode: SymbolMode; symbols: string[] } {
+  const normalized = (raw || "").trim();
+  if (!normalized || normalized.toUpperCase() === "ALL") {
+    return { mode: "all", symbols: [] };
   }
 
-  const symbols = raw
+  const symbols = normalized
     .split(",")
     .map((item) => item.trim().toUpperCase())
     .filter(Boolean);
 
-  return symbols.length > 0 ? symbols : DEFAULT_SYMBOLS;
+  if (symbols.length === 0) {
+    return { mode: "all", symbols: [] };
+  }
+
+  return { mode: "manual", symbols };
 }
 
 function parsePositiveInt(raw: string | undefined, fallback: number): number {
@@ -23,8 +28,9 @@ function parsePositiveInt(raw: string | undefined, fallback: number): number {
 }
 
 export const config = {
-  symbols: parseSymbols(process.env.MONITOR_SYMBOLS),
+  ...parseSymbolsConfig(process.env.MONITOR_SYMBOLS),
   maxPointsPerSymbol: parsePositiveInt(process.env.MAX_POINTS_PER_SYMBOL, 500),
+  collectConcurrency: parsePositiveInt(process.env.COLLECT_CONCURRENCY, 20),
   collectApiToken: process.env.COLLECT_API_TOKEN?.trim() || "",
   feishuWebhookUrl: process.env.FEISHU_WEBHOOK_URL?.trim() || "",
   cronSecret: process.env.CRON_SECRET?.trim() || ""

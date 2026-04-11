@@ -1,14 +1,16 @@
 import { evaluateAlert, buildAlertEvent } from "@/lib/alerts";
-import { fetchOpenInterestPoint } from "@/lib/binance";
+import { fetchAllFuturesPrices, fetchAllTradableFuturesSymbols, fetchOpenInterestPoint } from "@/lib/binance";
 import { config } from "@/lib/config";
 import { sendFeishuAlert } from "@/lib/feishu";
 import {
   appendSeriesPoint,
   getLastSentTimestamp,
   pushAlert,
-  setLastSentTimestamp
+  setAllSymbolSnapshots,
+  setLastSentTimestamp,
+  setMonitoredSymbols
 } from "@/lib/storage";
-import type { AlertLevel } from "@/lib/types";
+import type { AlertLevel, SymbolSnapshot } from "@/lib/types";
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -17,6 +19,8 @@ interface SymbolCollectResult {
   ok: boolean;
   openInterest?: number;
   timestamp?: number;
+  latestDelta?: number | null;
+  latestPrice?: number | null;
   alertLevel?: AlertLevel;
   error?: string;
 }
@@ -25,18 +29,79 @@ export interface CollectResult {
   ok: boolean;
   source: "manual" | "cron";
   collectedAt: number;
+  targetSymbolCount: number;
   symbols: SymbolCollectResult[];
 }
 
+async function resolveTargetSymbols(): Promise<string[]> {
+  if (config.mode === "manual") {
+    return config.symbols;
+  }
+
+  return fetchAllTradableFuturesSymbols();
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+
+  const workers = Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, async () => {
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const index = cursor;
+      cursor += 1;
+      if (index >= items.length) {
+        break;
+      }
+
+      results[index] = await mapper(items[index]);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
+
 export async function collectOpenInterest(source: "manual" | "cron"): Promise<CollectResult> {
-  const tasks = config.symbols.map(async (symbol): Promise<SymbolCollectResult> => {
+  let targetSymbols: string[] = [];
+  let priceMap: Record<string, number> = {};
+
+  try {
+    targetSymbols = await resolveTargetSymbols();
+    await setMonitoredSymbols(targetSymbols);
+    priceMap = await fetchAllFuturesPrices();
+  } catch (error) {
+    return {
+      ok: false,
+      source,
+      collectedAt: Date.now(),
+      targetSymbolCount: 0,
+      symbols: [
+        {
+          symbol: "SYSTEM",
+          ok: false,
+          error: error instanceof Error ? error.message : "Failed to resolve target symbols/prices"
+        }
+      ]
+    };
+  }
+
+  const symbols = await mapWithConcurrency(targetSymbols, config.collectConcurrency, async (symbol) => {
     try {
       const point = await fetchOpenInterestPoint(symbol);
       const normalizedPoint = {
         ...point,
-        timestamp: Math.floor(point.timestamp / HOUR_MS) * HOUR_MS
+        timestamp: Math.floor(point.timestamp / HOUR_MS) * HOUR_MS,
+        price: priceMap[symbol] ?? null
       };
       const series = await appendSeriesPoint(symbol, normalizedPoint, config.maxPointsPerSymbol);
+      const latest = series[series.length - 1];
+      const prev = series[series.length - 2];
+      const latestDelta = latest && prev ? latest.openInterest - prev.openInterest : null;
 
       const evaluation = evaluateAlert(series);
       let alertLevel: AlertLevel | undefined;
@@ -59,6 +124,8 @@ export async function collectOpenInterest(source: "manual" | "cron"): Promise<Co
         ok: true,
         openInterest: normalizedPoint.openInterest,
         timestamp: normalizedPoint.timestamp,
+        latestDelta,
+        latestPrice: normalizedPoint.price,
         alertLevel
       };
     } catch (error) {
@@ -70,12 +137,22 @@ export async function collectOpenInterest(source: "manual" | "cron"): Promise<Co
     }
   });
 
-  const symbols = await Promise.all(tasks);
+  const snapshots: SymbolSnapshot[] = symbols
+    .filter((item) => item.ok)
+    .map((item) => ({
+      symbol: item.symbol,
+      latestOpenInterest: item.openInterest ?? null,
+      latestPrice: item.latestPrice ?? null,
+      lastUpdated: item.timestamp ?? null,
+      latestDelta: item.latestDelta ?? null
+    }));
+  await setAllSymbolSnapshots(snapshots);
 
   return {
     ok: symbols.every((item) => item.ok),
     source,
     collectedAt: Date.now(),
+    targetSymbolCount: targetSymbols.length,
     symbols
   };
 }

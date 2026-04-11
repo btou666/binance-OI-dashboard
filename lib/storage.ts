@@ -1,17 +1,21 @@
 import { kv } from "@vercel/kv";
 
-import type { AlertEvent, AlertLevel, OIPoint } from "@/lib/types";
+import type { AlertEvent, AlertLevel, OIPoint, SymbolSnapshot } from "@/lib/types";
 
 const SERIES_KEY_PREFIX = "oi:series:";
 const ALERTS_KEY = "oi:alerts";
 const SENT_KEY_PREFIX = "oi:sent:";
+const MONITORED_SYMBOLS_KEY = "oi:monitored-symbols";
+const SNAPSHOTS_KEY = "oi:snapshots";
 
 const useKV = Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 interface MemoryStore {
   series: Record<string, OIPoint[]>;
+  snapshots: Record<string, SymbolSnapshot>;
   alerts: AlertEvent[];
   sent: Record<string, number>;
+  monitoredSymbols: string[];
 }
 
 declare global {
@@ -23,8 +27,10 @@ function getMemoryStore(): MemoryStore {
   if (!globalThis.__OI_MONITOR_MEMORY__) {
     globalThis.__OI_MONITOR_MEMORY__ = {
       series: {},
+      snapshots: {},
       alerts: [],
-      sent: {}
+      sent: {},
+      monitoredSymbols: []
     };
   }
 
@@ -79,6 +85,74 @@ export async function getAllSeries(symbols: string[]): Promise<Record<string, OI
   );
 
   return Object.fromEntries(entries);
+}
+
+export async function setAllSymbolSnapshots(snapshots: SymbolSnapshot[]): Promise<void> {
+  const normalized = snapshots.reduce<Record<string, SymbolSnapshot>>((acc, item) => {
+    acc[item.symbol] = item;
+    return acc;
+  }, {});
+
+  if (useKV) {
+    const current = (await kv.get<Record<string, SymbolSnapshot>>(SNAPSHOTS_KEY)) || {};
+    await kv.set(SNAPSHOTS_KEY, { ...current, ...normalized });
+    return;
+  }
+
+  const store = getMemoryStore();
+  store.snapshots = { ...store.snapshots, ...normalized };
+}
+
+export async function getAllSymbolSnapshots(symbols: string[]): Promise<Record<string, SymbolSnapshot>> {
+  const snapshotMap = useKV
+    ? ((await kv.get<Record<string, SymbolSnapshot>>(SNAPSHOTS_KEY)) || {})
+    : getMemoryStore().snapshots;
+
+  const entries = await Promise.all(
+    symbols.map(async (symbol) => {
+      if (snapshotMap[symbol]) {
+        return [symbol, snapshotMap[symbol]] as const;
+      }
+
+      const series = await getSeries(symbol);
+      const latest = series[series.length - 1];
+      const prev = series[series.length - 2];
+      const snapshot: SymbolSnapshot = {
+        symbol,
+        latestOpenInterest: latest?.openInterest ?? null,
+        latestPrice: latest?.price ?? null,
+        lastUpdated: latest?.timestamp ?? null,
+        latestDelta: latest && prev ? latest.openInterest - prev.openInterest : null
+      };
+      return [symbol, snapshot] as const;
+    })
+  );
+
+  return Object.fromEntries(entries);
+}
+
+export async function getMonitoredSymbols(): Promise<string[]> {
+  if (useKV) {
+    const saved = await kv.get<string[]>(MONITORED_SYMBOLS_KEY);
+    return Array.isArray(saved) ? saved : [];
+  }
+
+  const store = getMemoryStore();
+  return store.monitoredSymbols;
+}
+
+export async function setMonitoredSymbols(symbols: string[]): Promise<void> {
+  const normalized = [...new Set(symbols.map((item) => item.trim().toUpperCase()).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b)
+  );
+
+  if (useKV) {
+    await kv.set(MONITORED_SYMBOLS_KEY, normalized);
+    return;
+  }
+
+  const store = getMemoryStore();
+  store.monitoredSymbols = normalized;
 }
 
 export async function listAlerts(limit = 100): Promise<AlertEvent[]> {
