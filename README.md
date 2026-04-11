@@ -58,8 +58,8 @@
    - `MONITOR_SYMBOLS=ALL`
    - `COLLECT_CONCURRENCY=8`（先从 8 开始，稳定后再调高）
    - `COLLECT_INTERVAL_MS=600000`（10 分钟）
-   - `KV_REST_API_URL=...`
-   - `KV_REST_API_TOKEN=...`
+   - `KV_REST_API_URL=...` / `KV_REST_API_TOKEN=...`
+     或 `UPSTASH_REDIS_REST_URL=...` / `UPSTASH_REDIS_REST_TOKEN=...`
    - `BINANCE_FAPI_BASE=...`（可选，若服务器可直接访问 Binance 可不配）
 3. 先单次试跑：
    ```bash
@@ -92,6 +92,7 @@
 - `COLLECT_API_TOKEN`：手动采集接口的访问口令（可选）
 - `CRON_SECRET`：Cron 鉴权口令（可选）
 - `KV_REST_API_URL` / `KV_REST_API_TOKEN`：Vercel KV 凭证（生产推荐）
+- `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`：Upstash REST 凭证（代码已兼容）
 
 ## 接口
 - `GET /api/series`：读取图表和报警数据

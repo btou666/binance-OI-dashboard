@@ -1,4 +1,4 @@
-import { kv } from "@vercel/kv";
+import { createClient } from "@vercel/kv";
 
 import type { AlertEvent, AlertLevel, OIPoint, SymbolSnapshot } from "@/lib/types";
 
@@ -8,7 +8,14 @@ const SENT_KEY_PREFIX = "oi:sent:";
 const MONITORED_SYMBOLS_KEY = "oi:monitored-symbols";
 const SNAPSHOTS_KEY = "oi:snapshots";
 
-const useKV = Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+const REST_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || "";
+const REST_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || "";
+const kv = REST_URL && REST_TOKEN
+  ? createClient({
+      url: REST_URL,
+      token: REST_TOKEN
+    })
+  : null;
 
 interface MemoryStore {
   series: Record<string, OIPoint[]>;
@@ -46,7 +53,7 @@ function getSentKey(symbol: string, level: AlertLevel): string {
 }
 
 export async function getSeries(symbol: string): Promise<OIPoint[]> {
-  if (useKV) {
+  if (kv) {
     const saved = await kv.get<OIPoint[]>(getSeriesKey(symbol));
     return Array.isArray(saved) ? saved : [];
   }
@@ -66,7 +73,7 @@ export async function appendSeriesPoint(
     .sort((a, b) => a.timestamp - b.timestamp)
     .slice(-maxPoints);
 
-  if (useKV) {
+  if (kv) {
     await kv.set(getSeriesKey(symbol), next);
     return next;
   }
@@ -93,7 +100,7 @@ export async function setAllSymbolSnapshots(snapshots: SymbolSnapshot[]): Promis
     return acc;
   }, {});
 
-  if (useKV) {
+  if (kv) {
     const current = (await kv.get<Record<string, SymbolSnapshot>>(SNAPSHOTS_KEY)) || {};
     await kv.set(SNAPSHOTS_KEY, { ...current, ...normalized });
     return;
@@ -104,7 +111,7 @@ export async function setAllSymbolSnapshots(snapshots: SymbolSnapshot[]): Promis
 }
 
 export async function getAllSymbolSnapshots(symbols: string[]): Promise<Record<string, SymbolSnapshot>> {
-  const snapshotMap = useKV
+  const snapshotMap = kv
     ? ((await kv.get<Record<string, SymbolSnapshot>>(SNAPSHOTS_KEY)) || {})
     : getMemoryStore().snapshots;
 
@@ -132,7 +139,7 @@ export async function getAllSymbolSnapshots(symbols: string[]): Promise<Record<s
 }
 
 export async function getMonitoredSymbols(): Promise<string[]> {
-  if (useKV) {
+  if (kv) {
     const saved = await kv.get<string[]>(MONITORED_SYMBOLS_KEY);
     return Array.isArray(saved) ? saved : [];
   }
@@ -146,7 +153,7 @@ export async function setMonitoredSymbols(symbols: string[]): Promise<void> {
     a.localeCompare(b)
   );
 
-  if (useKV) {
+  if (kv) {
     await kv.set(MONITORED_SYMBOLS_KEY, normalized);
     return;
   }
@@ -156,7 +163,7 @@ export async function setMonitoredSymbols(symbols: string[]): Promise<void> {
 }
 
 export async function listAlerts(limit = 100): Promise<AlertEvent[]> {
-  if (useKV) {
+  if (kv) {
     const saved = await kv.get<AlertEvent[]>(ALERTS_KEY);
     const all = Array.isArray(saved) ? saved : [];
     return all.sort((a, b) => b.triggeredAt - a.triggeredAt).slice(0, limit);
@@ -167,7 +174,7 @@ export async function listAlerts(limit = 100): Promise<AlertEvent[]> {
 }
 
 export async function pushAlert(alert: AlertEvent, maxAlerts = 300): Promise<void> {
-  if (useKV) {
+  if (kv) {
     const current = await kv.get<AlertEvent[]>(ALERTS_KEY);
     const all = Array.isArray(current) ? current : [];
     const next = [alert, ...all].slice(0, maxAlerts);
@@ -182,7 +189,7 @@ export async function pushAlert(alert: AlertEvent, maxAlerts = 300): Promise<voi
 export async function getLastSentTimestamp(symbol: string, level: AlertLevel): Promise<number | null> {
   const key = getSentKey(symbol, level);
 
-  if (useKV) {
+  if (kv) {
     const saved = await kv.get<number>(key);
     return typeof saved === "number" ? saved : null;
   }
@@ -199,7 +206,7 @@ export async function setLastSentTimestamp(
 ): Promise<void> {
   const key = getSentKey(symbol, level);
 
-  if (useKV) {
+  if (kv) {
     await kv.set(key, timestamp);
     return;
   }
