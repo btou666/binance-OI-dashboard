@@ -52,6 +52,8 @@
 - `MAX_POINTS_PER_SYMBOL`：每个交易对保留的数据点数量
 - `COLLECT_CONCURRENCY`：采集并发数（全量建议 15~30）
 - `BINANCE_FAPI_BASE`：可选，Binance Futures API 基址（支持配置为你的代理地址）
+  - 示例：`https://binanceoi.xxx.workers.dev`
+  - 不要填写接口路径（如 `/fapi/v1`）；若误填，代码会自动规范化，但仍建议只填基址。
 - `FEISHU_WEBHOOK_URL`：飞书机器人 webhook 地址
 - `COLLECT_API_TOKEN`：手动采集接口的访问口令（可选）
 - `CRON_SECRET`：Cron 鉴权口令（可选）

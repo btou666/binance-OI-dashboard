@@ -2,6 +2,7 @@ import { evaluateAlert, buildAlertEvent } from "@/lib/alerts";
 import {
   fetchAllFuturesPrices,
   fetchAllTradableFuturesSymbols,
+  getBinanceFapiBase,
   fetchOpenInterestPoint,
   fetchUsdtPerpSymbolsFromTicker
 } from "@/lib/binance";
@@ -42,51 +43,45 @@ export interface CollectResult {
   symbols: SymbolCollectResult[];
 }
 
+function formatErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+}
+
 async function resolveTargetSymbols(): Promise<string[]> {
   if (config.mode === "manual") {
     return config.symbols;
   }
 
+  let exchangeInfoError: unknown;
   try {
     return await fetchAllTradableFuturesSymbols();
-  } catch {
-    try {
-      return await fetchUsdtPerpSymbolsFromTicker();
-    } catch {
-      const stored = await getMonitoredSymbols();
-      if (stored.length > 0) {
-        return stored;
-      }
-      throw new Error(
-        "Failed to resolve futures symbols from both exchangeInfo and ticker/price. This environment may be region-restricted."
-      );
-    }
+  } catch (error) {
+    exchangeInfoError = error;
   }
-}
 
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  concurrency: number,
-  mapper: (item: T) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let cursor = 0;
+  let tickerFallbackError: unknown;
+  try {
+    return await fetchUsdtPerpSymbolsFromTicker();
+  } catch (error) {
+    tickerFallbackError = error;
+  }
 
-  const workers = Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, async () => {
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const index = cursor;
-      cursor += 1;
-      if (index >= items.length) {
-        break;
-      }
+  const stored = await getMonitoredSymbols();
+  if (stored.length > 0) {
+    return stored;
+  }
 
-      results[index] = await mapper(items[index]);
-    }
-  });
-
-  await Promise.all(workers);
-  return results;
+  throw new Error(
+    [
+      "Failed to resolve futures symbols from both exchangeInfo and ticker/price. This environment may be region-restricted.",
+      `BINANCE_FAPI_BASE=${getBinanceFapiBase()}`,
+      `exchangeInfoError=${formatErrorMessage(exchangeInfoError)}`,
+      `tickerFallbackError=${formatErrorMessage(tickerFallbackError)}`
+    ].join(" | ")
+  );
 }
 
 export async function collectOpenInterest(source: "manual" | "cron"): Promise<CollectResult> {
@@ -105,12 +100,12 @@ export async function collectOpenInterest(source: "manual" | "cron"): Promise<Co
       targetSymbolCount: 0,
       successCount: 0,
       failureCount: 1,
-      firstError: error instanceof Error ? error.message : "Failed to resolve target symbols/prices",
+      firstError: formatErrorMessage(error),
       symbols: [
         {
           symbol: "SYSTEM",
           ok: false,
-          error: error instanceof Error ? error.message : "Failed to resolve target symbols/prices"
+          error: formatErrorMessage(error)
         }
       ]
     };
@@ -158,7 +153,7 @@ export async function collectOpenInterest(source: "manual" | "cron"): Promise<Co
       return {
         symbol,
         ok: false,
-        error: error instanceof Error ? error.message : "Unknown collect error"
+        error: formatErrorMessage(error)
       };
     }
   });
@@ -187,4 +182,29 @@ export async function collectOpenInterest(source: "manual" | "cron"): Promise<Co
     firstError,
     symbols
   };
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+
+  const workers = Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, async () => {
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const index = cursor;
+      cursor += 1;
+      if (index >= items.length) {
+        break;
+      }
+
+      results[index] = await mapper(items[index]);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
 }

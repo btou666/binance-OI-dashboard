@@ -1,6 +1,28 @@
 import type { OIPoint } from "@/lib/types";
 
-const BINANCE_FAPI_BASE = process.env.BINANCE_FAPI_BASE?.trim() || "https://fapi.binance.com";
+const DEFAULT_BINANCE_FAPI_BASE = "https://fapi.binance.com";
+const FAPI_V1_PREFIX = "/fapi/v1";
+
+function normalizeBinanceFapiBase(rawBase?: string): string {
+  const trimmed = rawBase?.trim();
+  if (!trimmed) {
+    return DEFAULT_BINANCE_FAPI_BASE;
+  }
+
+  const noTrailingSlash = trimmed.replace(/\/+$/, "");
+  if (noTrailingSlash.endsWith(FAPI_V1_PREFIX)) {
+    const normalized = noTrailingSlash.slice(0, -FAPI_V1_PREFIX.length);
+    return normalized || DEFAULT_BINANCE_FAPI_BASE;
+  }
+
+  return noTrailingSlash;
+}
+
+const BINANCE_FAPI_BASE = normalizeBinanceFapiBase(process.env.BINANCE_FAPI_BASE);
+
+export function getBinanceFapiBase(): string {
+  return BINANCE_FAPI_BASE;
+}
 
 interface BinanceOpenInterestResponse {
   symbol: string;
@@ -22,6 +44,13 @@ interface BinanceTickerPriceResponseItem {
   price: string;
 }
 
+async function throwFetchError(scope: string, response: Response, url: string): Promise<never> {
+  const raw = await response.text().catch(() => "");
+  const condensed = raw.replace(/\s+/g, " ").slice(0, 180);
+  const bodyPart = condensed ? ` body=${condensed}` : "";
+  throw new Error(`${scope}: ${response.status} ${response.statusText} url=${url}${bodyPart}`);
+}
+
 function normalizeUsdtPerpSymbols(rawSymbols: string[]): string[] {
   return [...new Set(rawSymbols)]
     .filter((symbol) => symbol.endsWith("USDT") && !symbol.includes("_"))
@@ -29,7 +58,7 @@ function normalizeUsdtPerpSymbols(rawSymbols: string[]): string[] {
 }
 
 export async function fetchOpenInterestPoint(symbol: string): Promise<OIPoint> {
-  const url = `${BINANCE_FAPI_BASE}/fapi/v1/openInterest?symbol=${encodeURIComponent(symbol)}`;
+  const url = `${BINANCE_FAPI_BASE}${FAPI_V1_PREFIX}/openInterest?symbol=${encodeURIComponent(symbol)}`;
   const response = await fetch(url, {
     cache: "no-store",
     headers: {
@@ -38,7 +67,7 @@ export async function fetchOpenInterestPoint(symbol: string): Promise<OIPoint> {
   });
 
   if (!response.ok) {
-    throw new Error(`Binance API error: ${response.status} ${response.statusText}`);
+    await throwFetchError("Binance openInterest error", response, url);
   }
 
   const payload = (await response.json()) as BinanceOpenInterestResponse;
@@ -57,7 +86,7 @@ export async function fetchOpenInterestPoint(symbol: string): Promise<OIPoint> {
 }
 
 export async function fetchAllTradableFuturesSymbols(): Promise<string[]> {
-  const url = `${BINANCE_FAPI_BASE}/fapi/v1/exchangeInfo`;
+  const url = `${BINANCE_FAPI_BASE}${FAPI_V1_PREFIX}/exchangeInfo`;
   const response = await fetch(url, {
     cache: "no-store",
     headers: {
@@ -66,7 +95,7 @@ export async function fetchAllTradableFuturesSymbols(): Promise<string[]> {
   });
 
   if (!response.ok) {
-    throw new Error(`Binance exchangeInfo error: ${response.status} ${response.statusText}`);
+    await throwFetchError("Binance exchangeInfo error", response, url);
   }
 
   const payload = (await response.json()) as BinanceExchangeInfoResponse;
@@ -85,7 +114,7 @@ export async function fetchAllTradableFuturesSymbols(): Promise<string[]> {
 }
 
 export async function fetchAllFuturesPrices(): Promise<Record<string, number>> {
-  const url = `${BINANCE_FAPI_BASE}/fapi/v1/ticker/price`;
+  const url = `${BINANCE_FAPI_BASE}${FAPI_V1_PREFIX}/ticker/price`;
   const response = await fetch(url, {
     cache: "no-store",
     headers: {
@@ -94,7 +123,7 @@ export async function fetchAllFuturesPrices(): Promise<Record<string, number>> {
   });
 
   if (!response.ok) {
-    throw new Error(`Binance ticker price error: ${response.status} ${response.statusText}`);
+    await throwFetchError("Binance ticker price error", response, url);
   }
 
   const payload = (await response.json()) as BinanceTickerPriceResponseItem[];
@@ -110,7 +139,7 @@ export async function fetchAllFuturesPrices(): Promise<Record<string, number>> {
 }
 
 export async function fetchUsdtPerpSymbolsFromTicker(): Promise<string[]> {
-  const url = `${BINANCE_FAPI_BASE}/fapi/v1/ticker/price`;
+  const url = `${BINANCE_FAPI_BASE}${FAPI_V1_PREFIX}/ticker/price`;
   const response = await fetch(url, {
     cache: "no-store",
     headers: {
@@ -119,7 +148,7 @@ export async function fetchUsdtPerpSymbolsFromTicker(): Promise<string[]> {
   });
 
   if (!response.ok) {
-    throw new Error(`Binance ticker price error: ${response.status} ${response.statusText}`);
+    await throwFetchError("Binance ticker price error", response, url);
   }
 
   const payload = (await response.json()) as BinanceTickerPriceResponseItem[];
