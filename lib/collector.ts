@@ -1,9 +1,15 @@
 import { evaluateAlert, buildAlertEvent } from "@/lib/alerts";
-import { fetchAllFuturesPrices, fetchAllTradableFuturesSymbols, fetchOpenInterestPoint } from "@/lib/binance";
+import {
+  fetchAllFuturesPrices,
+  fetchAllTradableFuturesSymbols,
+  fetchOpenInterestPoint,
+  fetchUsdtPerpSymbolsFromTicker
+} from "@/lib/binance";
 import { config } from "@/lib/config";
 import { sendFeishuAlert } from "@/lib/feishu";
 import {
   appendSeriesPoint,
+  getMonitoredSymbols,
   getLastSentTimestamp,
   pushAlert,
   setAllSymbolSnapshots,
@@ -38,7 +44,21 @@ async function resolveTargetSymbols(): Promise<string[]> {
     return config.symbols;
   }
 
-  return fetchAllTradableFuturesSymbols();
+  try {
+    return await fetchAllTradableFuturesSymbols();
+  } catch {
+    try {
+      return await fetchUsdtPerpSymbolsFromTicker();
+    } catch {
+      const stored = await getMonitoredSymbols();
+      if (stored.length > 0) {
+        return stored;
+      }
+      throw new Error(
+        "Failed to resolve futures symbols from both exchangeInfo and ticker/price. This environment may be region-restricted."
+      );
+    }
+  }
 }
 
 async function mapWithConcurrency<T, R>(

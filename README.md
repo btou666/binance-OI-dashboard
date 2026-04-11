@@ -45,6 +45,7 @@
 - 工作流每 10 分钟触发一次（UTC 时区）。
 - 也支持在 Actions 页面手动 `Run workflow`。
 - 全量 600+ 币对时，请根据函数时长限制调小或调大 `COLLECT_CONCURRENCY`。
+- 若 `exchangeInfo` 受限（451），系统会自动尝试从 `ticker/price` 推导 USDT 永续币对作为回退方案。
 
 ## 环境变量说明
 - `MONITOR_SYMBOLS`：`ALL`（推荐，全量自动发现）或手动列表（如 `BTCUSDT,ETHUSDT`）

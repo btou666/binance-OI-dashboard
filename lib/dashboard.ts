@@ -1,4 +1,4 @@
-import { fetchAllFuturesPrices, fetchAllTradableFuturesSymbols } from "@/lib/binance";
+import { fetchAllFuturesPrices, fetchAllTradableFuturesSymbols, fetchUsdtPerpSymbolsFromTicker } from "@/lib/binance";
 import { config } from "@/lib/config";
 import {
   getAllSymbolSnapshots,
@@ -36,7 +36,13 @@ async function resolveDashboardSymbols(): Promise<string[]> {
     await setMonitoredSymbols(discovered);
     return discovered;
   } catch {
-    return [];
+    try {
+      const fallback = await fetchUsdtPerpSymbolsFromTicker();
+      await setMonitoredSymbols(fallback);
+      return fallback;
+    } catch {
+      return [];
+    }
   }
 }
 

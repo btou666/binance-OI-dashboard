@@ -22,6 +22,12 @@ interface BinanceTickerPriceResponseItem {
   price: string;
 }
 
+function normalizeUsdtPerpSymbols(rawSymbols: string[]): string[] {
+  return [...new Set(rawSymbols)]
+    .filter((symbol) => symbol.endsWith("USDT") && !symbol.includes("_"))
+    .sort((a, b) => a.localeCompare(b));
+}
+
 export async function fetchOpenInterestPoint(symbol: string): Promise<OIPoint> {
   const url = `${BINANCE_FAPI_BASE}/fapi/v1/openInterest?symbol=${encodeURIComponent(symbol)}`;
   const response = await fetch(url, {
@@ -101,4 +107,27 @@ export async function fetchAllFuturesPrices(): Promise<Record<string, number>> {
   }
 
   return map;
+}
+
+export async function fetchUsdtPerpSymbolsFromTicker(): Promise<string[]> {
+  const url = `${BINANCE_FAPI_BASE}/fapi/v1/ticker/price`;
+  const response = await fetch(url, {
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json"
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Binance ticker price error: ${response.status} ${response.statusText}`);
+  }
+
+  const payload = (await response.json()) as BinanceTickerPriceResponseItem[];
+  const symbols = normalizeUsdtPerpSymbols(payload.map((item) => item.symbol));
+
+  if (symbols.length === 0) {
+    throw new Error("No USDT perpetual symbols found from ticker/price fallback");
+  }
+
+  return symbols;
 }
