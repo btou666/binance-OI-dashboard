@@ -30,9 +30,10 @@
 ## Vercel 部署要点
 1. 在 Vercel 项目中配置环境变量（至少 `MONITOR_SYMBOLS`，建议配置 KV 与 `FEISHU_WEBHOOK_URL`）
 2. 首次部署后可手动调用 `/api/collect` 初始化数据
-3. Hobby 免费版建议使用 GitHub Actions 做每小时触发（见下节）
+3. Hobby 免费版建议使用 GitHub Actions 做每 10 分钟触发（见下节）
+4. 若遇到 Binance `451`，请将 Vercel Functions Region 设为 `hkg1`（香港）或其他可访问地区
 
-## 免费版每小时触发（GitHub Actions）
+## 免费版每 10 分钟触发（GitHub Actions）
 项目已内置工作流文件：
 - `.github/workflows/hourly-collect.yml`
 
@@ -41,7 +42,7 @@
 - `COLLECT_API_TOKEN`：可选，对应服务端的 `COLLECT_API_TOKEN`
 
 说明：
-- 工作流每小时第 5 分钟触发一次（UTC 时区）。
+- 工作流每 10 分钟触发一次（UTC 时区）。
 - 也支持在 Actions 页面手动 `Run workflow`。
 - 全量 600+ 币对时，请根据函数时长限制调小或调大 `COLLECT_CONCURRENCY`。
 

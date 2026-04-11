@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDashboardData } from "@/lib/dashboard";
 
 export const dynamic = "force-dynamic";
+export const preferredRegion = ["hkg1"];
 
 export async function GET(request: NextRequest) {
   try {

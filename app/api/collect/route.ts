@@ -5,6 +5,7 @@ import { config } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
+export const preferredRegion = ["hkg1"];
 
 function hasAccess(request: NextRequest): boolean {
   if (!config.collectApiToken) {
@@ -28,6 +29,19 @@ async function runCollect(request: NextRequest) {
   }
 
   const result = await collectOpenInterest("manual");
+  const firstError = result.symbols.find((item) => !item.ok)?.error || "";
+
+  if (firstError.includes("451")) {
+    return NextResponse.json(
+      {
+        ...result,
+        error:
+          "Binance Futures API returned 451 (region restricted). Please run this function in hkg1/sin1 or another supported region."
+      },
+      { status: 451 }
+    );
+  }
+
   return NextResponse.json(result, { status: result.ok ? 200 : 207 });
 }
 
