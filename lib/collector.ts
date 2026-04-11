@@ -36,6 +36,9 @@ export interface CollectResult {
   source: "manual" | "cron";
   collectedAt: number;
   targetSymbolCount: number;
+  successCount: number;
+  failureCount: number;
+  firstError?: string;
   symbols: SymbolCollectResult[];
 }
 
@@ -100,6 +103,9 @@ export async function collectOpenInterest(source: "manual" | "cron"): Promise<Co
       source,
       collectedAt: Date.now(),
       targetSymbolCount: 0,
+      successCount: 0,
+      failureCount: 1,
+      firstError: error instanceof Error ? error.message : "Failed to resolve target symbols/prices",
       symbols: [
         {
           symbol: "SYSTEM",
@@ -167,12 +173,18 @@ export async function collectOpenInterest(source: "manual" | "cron"): Promise<Co
       latestDelta: item.latestDelta ?? null
     }));
   await setAllSymbolSnapshots(snapshots);
+  const successCount = symbols.filter((item) => item.ok).length;
+  const failureCount = symbols.length - successCount;
+  const firstError = symbols.find((item) => !item.ok)?.error;
 
   return {
-    ok: symbols.every((item) => item.ok),
+    ok: successCount > 0,
     source,
     collectedAt: Date.now(),
     targetSymbolCount: targetSymbols.length,
+    successCount,
+    failureCount,
+    firstError,
     symbols
   };
 }

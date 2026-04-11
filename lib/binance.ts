@@ -1,6 +1,6 @@
 import type { OIPoint } from "@/lib/types";
 
-const BINANCE_FAPI_BASE = "https://fapi.binance.com";
+const BINANCE_FAPI_BASE = process.env.BINANCE_FAPI_BASE?.trim() || "https://fapi.binance.com";
 
 interface BinanceOpenInterestResponse {
   symbol: string;

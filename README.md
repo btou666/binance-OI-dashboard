@@ -51,6 +51,7 @@
 - `MONITOR_SYMBOLS`：`ALL`（推荐，全量自动发现）或手动列表（如 `BTCUSDT,ETHUSDT`）
 - `MAX_POINTS_PER_SYMBOL`：每个交易对保留的数据点数量
 - `COLLECT_CONCURRENCY`：采集并发数（全量建议 15~30）
+- `BINANCE_FAPI_BASE`：可选，Binance Futures API 基址（支持配置为你的代理地址）
 - `FEISHU_WEBHOOK_URL`：飞书机器人 webhook 地址
 - `COLLECT_API_TOKEN`：手动采集接口的访问口令（可选）
 - `CRON_SECRET`：Cron 鉴权口令（可选）
@@ -64,3 +65,9 @@
 ```bash
 curl -X POST "https://你的域名/api/collect?token=你的token"
 ```
+
+返回里可关注：
+- `targetSymbolCount`：本次计划采集币对数
+- `successCount`：本次成功采集币对数
+- `failureCount`：本次失败数
+- `firstError`：首个错误原因（用于快速定位）

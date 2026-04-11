@@ -45,3 +45,8 @@ jobs:
             echo "Collect result indicates failure."
             exit 1
           fi
+
+          if grep -q '"successCount":0' response.json; then
+            echo "Collect result has zero successful symbols."
+            exit 1
+          fi

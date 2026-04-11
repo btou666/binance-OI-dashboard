@@ -29,7 +29,7 @@ async function runCollect(request: NextRequest) {
   }
 
   const result = await collectOpenInterest("manual");
-  const firstError = result.symbols.find((item) => !item.ok)?.error || "";
+  const firstError = result.firstError || result.symbols.find((item) => !item.ok)?.error || "";
 
   if (firstError.includes("451")) {
     return NextResponse.json(
@@ -42,7 +42,17 @@ async function runCollect(request: NextRequest) {
     );
   }
 
-  return NextResponse.json(result, { status: result.ok ? 200 : 207 });
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ...result,
+        error: firstError || "Collect failed: no successful symbol data in this run."
+      },
+      { status: 207 }
+    );
+  }
+
+  return NextResponse.json(result, { status: 200 });
 }
 
 export async function GET(request: NextRequest) {
