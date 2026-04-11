@@ -47,10 +47,44 @@
 - 全量 600+ 币对时，请根据函数时长限制调小或调大 `COLLECT_CONCURRENCY`。
 - 若 `exchangeInfo` 受限（451），系统会自动尝试从 `ticker/price` 推导 USDT 永续币对作为回退方案。
 
+## 服务器常驻采集（推荐全量场景）
+如果你要稳定跑 500+ 币对，推荐在轻量云服务器上常驻循环采集，再写入 Vercel KV。
+
+1. 在服务器拉取项目并安装依赖：
+   ```bash
+   npm install
+   ```
+2. 配置环境变量（至少这些）：
+   - `MONITOR_SYMBOLS=ALL`
+   - `COLLECT_CONCURRENCY=8`（先从 8 开始，稳定后再调高）
+   - `COLLECT_INTERVAL_MS=600000`（10 分钟）
+   - `KV_REST_API_URL=...`
+   - `KV_REST_API_TOKEN=...`
+   - `BINANCE_FAPI_BASE=...`（可选，若服务器可直接访问 Binance 可不配）
+3. 先单次试跑：
+   ```bash
+   npm run collector:once
+   ```
+4. 成功后启动循环：
+   ```bash
+   npm run collector:loop
+   ```
+5. 生产建议用 systemd 常驻（断线/重启自动恢复）：
+   ```bash
+   cp deploy/oi-collector.service /etc/systemd/system/oi-collector.service
+   systemctl daemon-reload
+   systemctl enable --now oi-collector
+   systemctl status oi-collector
+   ```
+
+脚本会打印每轮采集结果（`targetSymbolCount / successCount / failureCount / firstError`）。
+只要服务器采集成功并写入 KV，Vercel 前端就会显示 OI 数据。
+
 ## 环境变量说明
 - `MONITOR_SYMBOLS`：`ALL`（推荐，全量自动发现）或手动列表（如 `BTCUSDT,ETHUSDT`）
 - `MAX_POINTS_PER_SYMBOL`：每个交易对保留的数据点数量
 - `COLLECT_CONCURRENCY`：采集并发数（全量建议 15~30）
+- `COLLECT_INTERVAL_MS`：服务器循环采集间隔（毫秒，默认 600000=10 分钟）
 - `BINANCE_FAPI_BASE`：可选，Binance Futures API 基址（支持配置为你的代理地址）
   - 示例：`https://binanceoi.xxx.workers.dev`
   - 不要填写接口路径（如 `/fapi/v1`）；若误填，代码会自动规范化，但仍建议只填基址。

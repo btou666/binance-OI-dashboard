@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       {
         ...result,
         error:
-          "Binance Futures API returned 451 (region restricted). Please run this function in hkg1/sin1 or another supported region."
+          `Binance Futures API returned 451 (region restricted). Please run this function in hkg1/sin1 or another supported region. detail: ${firstError}`
       },
       { status: 451 }
     );

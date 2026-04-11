@@ -1,0 +1,15 @@
+[Unit]
+Description=Binance Futures OI Collector Loop
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/binance-oi-dashboard
+EnvironmentFile=/opt/binance-oi-dashboard/.env.collector
+ExecStart=/usr/bin/npm run collector:loop
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
