@@ -42,12 +42,13 @@ async function resolveDashboardSymbols(): Promise<string[]> {
 
 export async function getDashboardData(selectedSymbol?: string | null): Promise<DashboardPayload> {
   const symbols = await resolveDashboardSymbols();
-  const emptyPriceMap: Record<string, number> = {};
-  const [snapshots, realtimePrices, alerts] = await Promise.all([
+  const [snapshots, alerts] = await Promise.all([
     getAllSymbolSnapshots(symbols),
-    fetchAllFuturesPrices().catch(() => emptyPriceMap),
     listAlerts(50)
   ]);
+  const realtimePrices: Record<string, number> = await fetchAllFuturesPrices().catch(
+    (): Record<string, number> => ({})
+  );
 
   const mergedSnapshots = symbols.map((symbol) => {
     const snapshot = snapshots[symbol] || {
